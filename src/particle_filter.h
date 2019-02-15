@@ -18,7 +18,7 @@ struct Particle {
   double x;
   double y;
   double theta;
-  double weight;
+  double weight = 1.0;
   std::vector<int> associations;
   std::vector<double> sense_x;
   std::vector<double> sense_y;
