@@ -12,24 +12,31 @@
 #include <string>
 #include <vector>
 #include "helper_functions.h"
+#include "types.h"
 
-struct Particle {
-  int id;
-  double x;
-  double y;
-  double theta;
-  double weight = 1.0;
-  std::vector<int> associations;
-  std::vector<double> sense_x;
-  std::vector<double> sense_y;
+class Particle : public CartesianPoint {
+public:
+  Particle(double x, double y, double theta);
+  const std::vector<LandmarkObs>& expected() const { return expected_; }
+  double theta() const { return theta_; }
+  double weight() const { return weight_; }
+  void update_estimate(double x, double y, double theta);
+  void update_weight(double weight);
+  void update_expected(std::vector<LandmarkObs>&& expected);
+  std::vector<int> associations();
+  std::vector<double> sense_x();
+  std::vector<double> sense_y(); 
+ private:
+  double theta_;
+  double weight_;
+  std::vector<LandmarkObs> expected_;
 };
 
-
-class ParticleFilter {  
+class ParticleFilter {
  public:
   // Constructor
   // @param num_particles Number of particles
-  ParticleFilter() : num_particles(0), is_initialized(false) {}
+  ParticleFilter() : initialized_(false) {}
 
   // Destructor
   ~ParticleFilter() {}
@@ -40,45 +47,41 @@ class ParticleFilter {
    * @param x Initial x position [m] (simulated estimate from GPS)
    * @param y Initial y position [m]
    * @param theta Initial orientation [rad]
-   * @param std[] Array of dimension 3 [standard deviation of x [m], 
+   * @param std[] Array of dimension 3 [standard deviation of x [m],
    *   standard deviation of y [m], standard deviation of yaw [rad]]
    */
-  void init(double x, double y, double theta, double std[]);
+  void init(unsigned int num_particles, double est_x, double est_y,
+            double est_theta, double est_stddev[], double meas_stddev[], double sensor_range,
+            const Map& map);
 
   /**
    * prediction Predicts the state for the next time step
    *   using the process model.
    * @param delta_t Time between time step t and t+1 in measurements [s]
-   * @param std_pos[] Array of dimension 3 [standard deviation of x [m], 
+   * @param std_pos[] Array of dimension 3 [standard deviation of x [m],
    *   standard deviation of y [m], standard deviation of yaw [rad]]
    * @param velocity Velocity of car from t to t+1 [m/s]
    * @param yaw_rate Yaw rate of car from t to t+1 [rad/s]
    */
-  void prediction(double delta_t, double std_pos[], double velocity, 
+  void prediction(double delta_t, double std_pos[], double velocity,
                   double yaw_rate);
-  
+
   /**
-   * dataAssociation Finds which observations correspond to which landmarks 
+   * dataAssociation Finds which observations correspond to which landmarks
    *   (likely by using a nearest-neighbors data association).
    * @param predicted Vector of predicted landmark observations
    * @param observations Vector of landmark observations
    */
-  void dataAssociation(std::vector<LandmarkObs> predicted, 
-                       std::vector<LandmarkObs>& observations);
-  
+  // void dataAssociation(std::vector<LandmarkObs> predicted,
+  // std::vector<LandmarkObs>& observations);
+
   /**
    * updateWeights Updates the weights for each particle based on the likelihood
-   *   of the observed measurements. 
-   * @param sensor_range Range [m] of sensor
-   * @param std_landmark[] Array of dimension 2
-   *   [Landmark measurement uncertainty [x [m], y [m]]]
+   *   of the observed measurements.
    * @param observations Vector of landmark observations
-   * @param map Map class containing map landmarks
    */
-  void updateWeights(double sensor_range, double std_landmark[], 
-                     const std::vector<LandmarkObs> &observations,
-                     const Map &map_landmarks);
-  
+  void updateWeights(std::vector<LandmarkObs> observations);
+
   /**
    * resample Resamples from the updated set of particles to form
    *   the new set of particles.
@@ -86,40 +89,38 @@ class ParticleFilter {
   void resample();
 
   /**
-   * Set a particles list of associations, along with the associations'
-   *   calculated world x,y coordinates
-   * This can be a very useful debugging tool to make sure transformations 
-   *   are correct and assocations correctly connected
-   */
-  void SetAssociations(Particle& particle, const std::vector<int>& associations,
-                       const std::vector<double>& sense_x, 
-                       const std::vector<double>& sense_y);
-
-  /**
    * initialized Returns whether particle filter is initialized yet or not.
    */
-  const bool initialized() const {
-    return is_initialized;
-  }
+  bool initialized() const { return initialized_; }
 
   /**
    * Used for obtaining debugging information related to particles.
    */
-  std::string getAssociations(Particle best);
-  std::string getSenseCoord(Particle best, std::string coord);
+   std::string getAssociations(Particle best);
+   std::string getSenseCoord(Particle best, std::string coord);
 
-  // Set of current particles
-  std::vector<Particle> particles;
+   const std::vector<Particle>& particles() { return particles_; }
 
  private:
-  // Number of particles to draw
-  int num_particles; 
-  
+
+  void update_expected();
+  const Map& map() const { return map_; }
+  double sensor_range() const { return sensor_range_; }
+  double gaussian_norm() const { return gaussian_norm_; }
+  double norm_x() const { return norm_x_; }
+  double norm_y() const { return norm_y_; }
+
+  double gaussian_norm_;
+  double norm_x_;
+  double norm_y_;
   // Flag, if filter is initialized
-  bool is_initialized;
-  
-  // Vector of weights of all particles
-  std::vector<double> weights; 
+  bool initialized_;
+
+  // Set of current particles
+  std::vector<Particle> particles_;
+
+  double sensor_range_;
+  Map map_;
 };
 
 #endif  // PARTICLE_FILTER_H_
