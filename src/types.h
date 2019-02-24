@@ -5,6 +5,7 @@
 
 class CartesianPoint {
 public:
+  CartesianPoint() = default;
   CartesianPoint(double x, double y) : x_(x), y_(y) {}
   double x() const { return x_; }
   double y() const { return y_; }
@@ -31,6 +32,7 @@ inline double dist(const CartesianPoint& point1, const CartesianPoint point2) {
  */
 class LandmarkObs : public CartesianPoint {
 public:
+  LandmarkObs() = default;
   LandmarkObs(double x, double y) : CartesianPoint(x, y) {}
   void set_landmark(unsigned int landmark_id) { landmark_id_ = landmark_id; }
   unsigned int landmark_id() const { return landmark_id_; }
