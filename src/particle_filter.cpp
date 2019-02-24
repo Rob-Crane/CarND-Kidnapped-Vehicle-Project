@@ -8,9 +8,7 @@
 #include "particle_filter.h"
 
 #include <math.h>
-//#include <algorithm>
 #include <iterator>
-//#include <numeric>
 #include <random>
 #include <string>
 #include <vector>
@@ -130,7 +128,6 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   }
   update_expected();
 }
-#include <iostream>
 void ParticleFilter::updateWeights(vector<LandmarkObs> observations) {
   for (Particle& p : particles_) {
     double weight = 1.0;
@@ -138,27 +135,25 @@ void ParticleFilter::updateWeights(vector<LandmarkObs> observations) {
     // landmark.
     for (const LandmarkObs& expected_obs : p.expected()) {
       // Find the observation that is closest to expected landmark observation.
-      vector<LandmarkObs>::const_iterator closest_obs;
+      LandmarkObs closest_obs;
       double min_dist = std::numeric_limits<double>::max();
-      for (vector<LandmarkObs>::const_iterator obs_it = observations.cbegin();
-           obs_it != observations.cend(); ++obs_it) {
+      for (const LandmarkObs& obs: observations) {
         // Transform observation to global frame.
-        double obs_x = p.x() + (obs_it->x() * cos(p.theta()) -
-                                obs_it->y() * sin(p.theta()));
-        double obs_y = p.y() + (obs_it->x() * sin(p.theta()) +
-                                obs_it->y() * cos(p.theta()));
-        std::cout<<"x: "<< obs_x << " y: " << obs_y << std::endl;
-        std::exit(0);
+        double obs_x = p.x() + (obs.x() * cos(p.theta()) -
+                                obs.y() * sin(p.theta()));
+        double obs_y = p.y() + (obs.x() * sin(p.theta()) +
+                                obs.y() * cos(p.theta()));
         const LandmarkObs transformed_obs(obs_x, obs_y);
         double distance = dist(expected_obs, transformed_obs);
         if (distance < min_dist) {
           min_dist = distance;
-          closest_obs = obs_it;
+          closest_obs = transformed_obs;
         }
       }
+
       // Calculate weight from M.V. Gaussian.
-      double diff_x = closest_obs->x() - expected_obs.x();
-      double diff_y = closest_obs->y() - expected_obs.y();
+      double diff_x = closest_obs.x() - expected_obs.x();
+      double diff_y = closest_obs.y() - expected_obs.y();
       double exponent =
           -(norm_x() * diff_x * diff_x + norm_y() * diff_y * diff_y);
       weight *= (gaussian_norm() * exp(exponent));
