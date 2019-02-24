@@ -15,20 +15,25 @@
 #include "types.h"
 
 class Particle : public CartesianPoint {
-public:
+ public:
   Particle(double x, double y, double theta);
-  const std::vector<LandmarkObs>& expected() const { return expected_; }
+  const std::vector<LandmarkObs>& expected() const {
+    return expected_;
+  }
   double theta() const { return theta_; }
   double weight() const { return weight_; }
   void update_estimate(double x, double y, double theta);
   void update_weight(double weight);
-  void update_expected(std::vector<LandmarkObs>&& expected);
+  void update_expected(
+      std::vector<LandmarkObs>&& expected);
   std::vector<int> associations();
   std::vector<double> sense_x();
-  std::vector<double> sense_y(); 
+  std::vector<double> sense_y();
+
  private:
   double theta_;
   double weight_;
+  // Map the landmark ID to the expected observation.
   std::vector<LandmarkObs> expected_;
 };
 
@@ -51,12 +56,12 @@ class ParticleFilter {
    *   standard deviation of y [m], standard deviation of yaw [rad]]
    */
   void init(unsigned int num_particles, double est_x, double est_y,
-            double est_theta, double est_stddev[], double meas_stddev[], double sensor_range,
-            const Map& map);
+            double est_theta, double est_stddev[], double meas_stddev[],
+            double sensor_range, const Map& map);
 
   /**
-   * prediction Predicts the state for the next time step
-   *   using the process model.
+   * Update each particle's state prediction with process model.  Then,
+   * update the list of landmarks expected to observe from that new position.
    * @param delta_t Time between time step t and t+1 in measurements [s]
    * @param std_pos[] Array of dimension 3 [standard deviation of x [m],
    *   standard deviation of y [m], standard deviation of yaw [rad]]
@@ -96,13 +101,15 @@ class ParticleFilter {
   /**
    * Used for obtaining debugging information related to particles.
    */
-   std::string getAssociations(Particle best);
-   std::string getSenseCoord(Particle best, std::string coord);
+  std::string getAssociations(Particle best);
+  std::string getSenseCoord(Particle best, std::string coord);
 
-   const std::vector<Particle>& particles() { return particles_; }
+  const std::vector<Particle>& particles() { return particles_; }
 
  private:
-
+  /**
+   * For each particle, compute the landmarks that are in sensor range.
+   */
   void update_expected();
   const Map& map() const { return map_; }
   double sensor_range() const { return sensor_range_; }

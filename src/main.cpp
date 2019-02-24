@@ -31,7 +31,7 @@ int main() {
   // Set up parameters here
   double delta_t = 0.1;      // Time elapsed between measurements [sec]
   double sensor_range = 50;  // Sensor range [m]
-  unsigned int num_particles = 3;
+  unsigned int num_particles = 100;
 
   // GPS measurement uncertainty [x [m], y [m], theta [rad]]
   double sigma_pos[3] = {0.3, 0.3, 0.01};
@@ -112,11 +112,6 @@ int main() {
 
           // Update the weights and resample
           pf.updateWeights(noisy_observations);
-          for (std::vector<Particle>::const_iterator particle_it =
-                   pf.particles().cbegin();
-               particle_it != pf.particles().cend(); ++particle_it) {
-              std::cout<<"weight: "<<particle_it->weight()<<std::endl;
-          }
           pf.resample();
 
           // Calculate and output the average weighted error of the particle
@@ -135,9 +130,6 @@ int main() {
             }
             weight_sum += particle_it->weight();
           }
-
-          std::cout << "highest w " << highest_weight << std::endl;
-          std::cout << "average w " << weight_sum / num_particles << std::endl;
 
           json msgJson;
           msgJson["best_particle_x"] = best_particle->x();

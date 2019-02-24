@@ -35,7 +35,7 @@ void Particle::update_estimate(double x, double y, double theta) {
 
 void Particle::update_weight(double weight) { weight_ = weight; }
 
-void Particle::update_expected(std::vector<LandmarkObs>&& expected) {
+void Particle::update_expected(vector<LandmarkObs>&& expected) {
   expected_ = expected;
 }
 
@@ -65,7 +65,7 @@ vector<double> Particle::sense_y() {
 
 void ParticleFilter::update_expected() {
   for (Particle& p : particles_) {
-    std::vector<LandmarkObs> expected;
+    vector<LandmarkObs> expected;
     for (const auto& landmark : map().landmark_list) {
       double distance = dist(landmark, p);
       if (distance < sensor_range()) {
@@ -111,64 +111,71 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   std::normal_distribution<double> dist_noise_theta(0.0, std_pos[2]);
 
   for (Particle& p : particles_) {
-    double x = p.x() +
-               velocity / yaw_rate *
-                   (sin(p.theta() + yaw_rate * delta_t) - sin(p.theta())) +
-               dist_noise_x(gen);
-    double y = p.y() +
-               velocity / yaw_rate *
-                   (cos(p.theta()) - cos(p.theta() + yaw_rate * delta_t)) +
-               dist_noise_y(gen);
-    double theta = p.theta() + yaw_rate * delta_t + dist_noise_theta(gen);
-    p.update_estimate(x, y, theta);
+    if(fabs(yaw_rate) < 1E-5) {
+        double x = p.x() + velocity * delta_t * cos(p.theta());
+        double y = p.y() + velocity * delta_t * sin(p.theta());
+        p.update_estimate(x, y, p.theta());
+    } else {
+        double x = p.x() +
+                   velocity / yaw_rate *
+                       (sin(p.theta() + yaw_rate * delta_t) - sin(p.theta())) +
+                   dist_noise_x(gen);
+        double y = p.y() +
+                   velocity / yaw_rate *
+                       (cos(p.theta()) - cos(p.theta() + yaw_rate * delta_t)) +
+                   dist_noise_y(gen);
+        double theta = p.theta() + yaw_rate * delta_t + dist_noise_theta(gen);
+        p.update_estimate(x, y, theta);
+    }
   }
   update_expected();
 }
-
 #include <iostream>
 void ParticleFilter::updateWeights(vector<LandmarkObs> observations) {
   for (Particle& p : particles_) {
     double weight = 1.0;
-    for (const LandmarkObs& obs : observations) {
-      // Get closest expect landmark observation for this particle.
+    // Compute weight as product of probabilities of observing each expected
+    // landmark.
+    for (const LandmarkObs& expected_obs : p.expected()) {
+      // Find the observation that is closest to expected landmark observation.
+      vector<LandmarkObs>::const_iterator closest_obs;
       double min_dist = std::numeric_limits<double>::max();
-      std::vector<LandmarkObs>::const_iterator closest_expected;
-      for (std::vector<LandmarkObs>::const_iterator exp_it =
-               p.expected().cbegin();
-           exp_it != p.expected().cend(); ++exp_it) {
-        double distance = dist(obs, *exp_it);
+      for (vector<LandmarkObs>::const_iterator obs_it = observations.cbegin();
+           obs_it != observations.cend(); ++obs_it) {
+        // Transform observation to global frame.
+        double obs_x = p.x() + (obs_it->x() * cos(p.theta()) -
+                                obs_it->y() * sin(p.theta()));
+        double obs_y = p.y() + (obs_it->x() * sin(p.theta()) +
+                                obs_it->y() * cos(p.theta()));
+        std::cout<<"x: "<< obs_x << " y: " << obs_y << std::endl;
+        std::exit(0);
+        const LandmarkObs transformed_obs(obs_x, obs_y);
+        double distance = dist(expected_obs, transformed_obs);
         if (distance < min_dist) {
           min_dist = distance;
-          closest_expected = exp_it;
+          closest_obs = obs_it;
         }
       }
-      // Transform observation to global frame.
-      double obs_x =
-          p.x() + (obs.x() * cos(p.theta()) - obs.y() * sin(p.theta()));
-      double obs_y =
-          p.y() + (obs.x() * sin(p.theta()) - obs.y() * cos(p.theta()));
       // Calculate weight from M.V. Gaussian.
-      double diff_x = closest_expected->x() - obs_x;
-      double diff_y = closest_expected->y() - obs_y;
+      double diff_x = closest_obs->x() - expected_obs.x();
+      double diff_y = closest_obs->y() - expected_obs.y();
       double exponent =
           -(norm_x() * diff_x * diff_x + norm_y() * diff_y * diff_y);
-      //TODO find out reason this weight is 0 always
       weight *= (gaussian_norm() * exp(exponent));
     }
-    std::cout<<"calc weight: "<<weight<<std::endl;
     p.update_weight(weight);
   }
 }
 
 void ParticleFilter::resample() {
-  std::vector<double> weights;
+  vector<double> weights;
   for (const Particle& p : particles()) {
     weights.push_back(p.weight());
   }
   std::discrete_distribution<unsigned int> weights_dist(weights.cbegin(),
                                                         weights.cend());
   std::default_random_engine gen;
-  std::vector<Particle> resampled_particles;
+  vector<Particle> resampled_particles;
   for (unsigned int i = 0; i < particles().size(); ++i) {
     unsigned int j = weights_dist(gen);
     resampled_particles.push_back(particles()[j]);
